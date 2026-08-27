@@ -1,0 +1,66 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>YPSN Movable 3D Concept</title>
+<style>
+body{margin:0;background:#f2f2f2;font-family:Arial,sans-serif;overflow:hidden}
+#info{position:fixed;left:18px;top:15px;background:white;padding:12px 16px;border-radius:8px;
+box-shadow:0 2px 10px #aaa;z-index:2;font-size:14px}
+canvas{display:block;width:100vw;height:100vh}
+</style>
+</head>
+<body>
+<div id="info"><b>YPSN Water Quality Monitoring Node</b><br>
+Drag = rotate &nbsp; | &nbsp; Wheel = zoom<br>
+120 × 80 × 50 mm concept • sealed enclosure • exposed sensing probes</div>
+<canvas id="c"></canvas>
+<script>
+const c=document.getElementById('c'),ctx=c.getContext('2d');
+let W,H,rx=-.35,ry=.55,zoom=5.0,drag=false,lx=0,ly=0;
+function resize(){W=c.width=innerWidth*devicePixelRatio;H=c.height=innerHeight*devicePixelRatio;ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);W=innerWidth;H=innerHeight} resize();addEventListener('resize',resize);
+c.onmousedown=e=>{drag=true;lx=e.clientX;ly=e.clientY};onmouseup=()=>drag=false;
+onmousemove=e=>{if(!drag)return;ry+=(e.clientX-lx)*.008;rx+=(e.clientY-ly)*.008;lx=e.clientX;ly=e.clientY};
+c.onwheel=e=>{zoom*=e.deltaY<0?1.08:.92;zoom=Math.max(2.5,Math.min(9,zoom));e.preventDefault()};
+function rot(p){let [x,y,z]=p,cy=Math.cos(ry),sy=Math.sin(ry),cx=Math.cos(rx),sx=Math.sin(rx);
+let X=x*cy-z*sy,Z=x*sy+z*cy,Y=y*cx-Z*sx;Z=y*sx+Z*cx;return[X,Y,Z]}
+function proj(p){let q=rot(p),s=zoom/(1+q[2]/650);return[W/2+q[0]*s,H/2-q[1]*s,q[2]]}
+function box(x,y,z,w,d,h,fill,stroke="#555"){
+ let pts=[[x-w/2,y-d/2,z-h/2],[x+w/2,y-d/2,z-h/2],[x+w/2,y+d/2,z-h/2],[x-w/2,y+d/2,z-h/2],
+ [x-w/2,y-d/2,z+h/2],[x+w/2,y-d/2,z+h/2],[x+w/2,y+d/2,z+h/2],[x-w/2,y+d/2,z+h/2]];
+ let faces=[[0,1,2,3],[4,7,6,5],[0,4,5,1],[1,5,6,2],[2,6,7,3],[4,0,3,7]];
+ faces.map(f=>{let P=f.map(i=>proj(pts[i]));ctx.beginPath();ctx.moveTo(P[0][0],P[0][1]);P.slice(1).forEach(a=>ctx.lineTo(a[0],a[1]));ctx.closePath();ctx.fillStyle=fill;ctx.fill();ctx.strokeStyle=stroke;ctx.stroke()})
+}
+function cyl(x,y,z,r,h,fill){
+ let a=proj([x,y,z-h/2]),b=proj([x,y,z+h/2]);ctx.lineWidth=2;ctx.strokeStyle="#444";
+ ctx.beginPath();ctx.moveTo(a[0],a[1]);ctx.lineTo(b[0],b[1]);ctx.stroke();
+ ctx.fillStyle=fill;ctx.beginPath();ctx.arc(a[0],a[1],r*.55,0,7);ctx.fill();ctx.beginPath();ctx.arc(b[0],b[1],r*.55,0,7);ctx.fill()
+}
+function label(text,p,dx,dy){let q=proj(p);ctx.fillStyle="#111";ctx.font="14px Arial";ctx.fillText(text,q[0]+dx,q[1]+dy)}
+function draw(){
+ ctx.clearRect(0,0,W,H);
+ // main enclosure
+ box(0,0,25,120,80,50,"#d7d7d7");
+ // lid
+ box(0,0,52,120,80,4,"#bdbdbd");
+ // sensor gland
+ box(0,-44,18,75,10,22,"#333");
+ // probes point toward front (-Y)
+ [["pH", -30,10],["EC",-10,12],["Turbidity",10,14],["Temperature",30,12]].forEach(([n,x,h])=>{
+   cyl(x,-53,18,5,h,"#777"); label(n,[x,-55,18],-24,18);
+ });
+ // internal components shown slightly offset as an exploded-style cutaway concept
+ box(30,5,34,28,18,5,"#202020");
+ box(30,-20,34,25,14,5,"#4169a1");
+ box(-30,10,34,22,42,18,"#2d7dcc");
+ box(0,5,34,20,15,5,"#555");
+ label("ESP32",[30,5,37],-12,-10); label("LoRa",[30,-20,37],-10,-8); label("Battery",[-30,10,45],-20,-10);
+ label("YPSN",[0,0,55],-18,0);
+ // dimensions
+ ctx.strokeStyle="#111";ctx.fillStyle="#111";ctx.font="13px Arial";
+ ctx.fillText("120 mm",W/2-45,H/2+245);ctx.fillText("80 mm",W/2+245,H/2+35);ctx.fillText("50 mm",W/2+10,H/2-170);
+}
+function loop(){draw();requestAnimationFrame(loop)} loop();
+</script>
+</body>
+</html>
